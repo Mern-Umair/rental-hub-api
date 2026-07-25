@@ -1,0 +1,17 @@
+[
+    {"input": "lahore mein flat chahiye", "output": "Lahore mein properties available hain", "label": 0},
+    {"input": "karachi mein ghar chahiye", "output": "Karachi mein properties available hain", "label": 1},
+    {"input": "sasta ghar chahiye", "output": "Budget friendly properties available hain", "label": 2},
+    {"input": "2 bedroom chahiye", "output": "2 bedroom properties available hain", "label": 3},
+    {"input": "rent kitna hai", "output": "Rent 10000 se 50000 tak available hai", "label": 4},
+    {"input": "islamabad mein office chahiye", "output": "Islamabad mein commercial properties available hain", "label": 5},
+    {"input": "dha lahore mein villa chahiye", "output": "DHA Lahore mein villas available hain", "label": 6},
+    {"input": "monthly rent 20000", "output": "20000 budget mein properties available hain", "label": 7},
+    {"input": "i want a flat in lahore", "output": "Lahore mein properties available hain", "label": 0},
+    {"input": "cheap house available", "output": "Budget friendly properties available hain", "label": 2},
+    {"input": "2 bedroom house", "output": "2 bedroom properties available hain", "label": 3},
+    {"input": "what is the rent", "output": "Rent 10000 se 50000 tak available hai", "label": 4},
+    {"input": "لاہور میں فلیٹ چاہیے", "output": "Lahore mein properties available hain", "label": 0},
+    {"input": "سستا گھر چاہیے", "output": "Budget friendly properties available hain", "label": 2},
+    {"input": "کرایہ کتنا ہے", "output": "Rent 10000 se 50000 tak available hai", "label": 4}
+]
