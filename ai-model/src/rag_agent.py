@@ -1,74 +1,93 @@
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import sys
+import mysql.connector
 import os
+import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Embedding model load karo
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Property database — hamare project ka data
-properties = [
-    {"id": 1, "title": "2 Bedroom Flat Lahore DHA", "location": "Lahore", "area": "DHA", "price": 25000, "bedrooms": 2, "type": "flat"},
-    {"id": 2, "title": "3 Bedroom House Karachi", "location": "Karachi", "area": "Gulshan", "price": 35000, "bedrooms": 3, "type": "house"},
-    {"id": 3, "title": "1 Bedroom Flat Islamabad", "location": "Islamabad", "area": "F-10", "price": 15000, "bedrooms": 1, "type": "flat"},
-    {"id": 4, "title": "4 Bedroom Villa Lahore", "location": "Lahore", "area": "Gulberg", "price": 80000, "bedrooms": 4, "type": "villa"},
-    {"id": 5, "title": "2 Bedroom Flat Rawalpindi", "location": "Rawalpindi", "area": "Saddar", "price": 18000, "bedrooms": 2, "type": "flat"},
-    {"id": 6, "title": "3 Bedroom House Lahore", "location": "Lahore", "area": "Model Town", "price": 45000, "bedrooms": 3, "type": "house"},
-    {"id": 7, "title": "Studio Flat Karachi", "location": "Karachi", "area": "Clifton", "price": 12000, "bedrooms": 1, "type": "flat"},
-    {"id": 8, "title": "5 Bedroom Bungalow Lahore", "location": "Lahore", "area": "DHA Phase 6", "price": 150000, "bedrooms": 5, "type": "bungalow"},
-]
+def get_properties_from_db():
+    try:
+        conn = mysql.connector.connect(
+            host='127.0.0.1',
+            user='root',
+            password='umair',
+            database='property_rental'
+        )
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM properties")
+        properties = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return properties
+    except Exception as e:
+        print(f"DB Error: {e}")
+        return []
 
-# Properties ko text mein convert karo
-property_texts = [
-    f"{p['title']} in {p['area']} {p['location']} - {p['bedrooms']} bedroom - Rent {p['price']} - Type {p['type']}"
-    for p in properties
-]
+def build_index(properties):
+    if not properties:
+        return None, []
 
-# Embeddings banao
-print("Embeddings ban rahi hain...")
-embeddings = model.encode(property_texts)
-embeddings = np.array(embeddings).astype('float32')
+    texts = []
+    for p in properties:
+        text = f"{p['property_name']} in {p['location']} price {p['price']} status {p['status']}"
+        texts.append(text)
 
-# FAISS index banao
-dimension = embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)
-index.add(embeddings)
-print("RAG ready hai!")
+    embeddings = model.encode(texts).astype('float32')
+    dimension = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dimension)
+    index.add(embeddings)
+
+    return index, texts
+
+properties = get_properties_from_db()
+index, texts = build_index(properties)
+print(f"RAG ready — {len(properties)} properties loaded from database!")
 
 def search_properties(query, top_k=3):
+    if not properties or index is None:
+        return []
+
     query_embedding = model.encode([query]).astype('float32')
-    distances, indices = index.search(query_embedding, top_k)
-    
+    distances, indices = index.search(query_embedding, min(top_k, len(properties)))
+
     results = []
     for i, idx in enumerate(indices[0]):
-        prop = properties[idx]
-        results.append({
-            "property": prop,
-            "score": round(float(distances[0][i]), 2)
-        })
-    
+        if idx < len(properties):
+            prop = properties[idx]
+            results.append({
+                "property": {
+                    "id": prop['id'],
+                    "title": prop['property_name'],
+                    "location": prop['location'],
+                    "price": float(prop['price']),
+                    "status": prop['status']
+                },
+                "score": round(float(distances[0][i]), 2)
+            })
+
     return results
 
 def rag_response(query):
     results = search_properties(query)
-    
-    response = f"Aapki query '{query}' ke liye {len(results)} properties mili hain:\n"
-    
+
+    if not results:
+        return "Koi property nahi mili. Dobara search karein!"
+
+    response = f"'{query}' ke liye {len(results)} properties mili hain:\n"
+
     for i, result in enumerate(results):
         prop = result["property"]
         response += f"\n{i+1}. {prop['title']}"
-        response += f"\n   Location: {prop['area']}, {prop['location']}"
-        response += f"\n   Rent: {prop['price']} per month"
-        response += f"\n   Bedrooms: {prop['bedrooms']}"
-        response += f"\n   Type: {prop['type']}\n"
-    
+        response += f"\n   Location: {prop['location']}"
+        response += f"\n   Rent: Rs. {prop['price']:,.0f} per month"
+        response += f"\n   Status: {prop['status']}\n"
+
     return response
 
 if __name__ == "__main__":
-    print(rag_response("lahore mein 2 bedroom flat chahiye"))
+    print(rag_response("lahore mein flat chahiye"))
     print("---")
-    print(rag_response("sasta ghar karachi mein"))
-    print("---")
-    print(rag_response("DHA villa"))
+    print(rag_response("sasta ghar"))
